@@ -29,7 +29,7 @@ def get_projects():
         print("Exception when calling ProjectsApi->get_projects_for_workspace: %s\n" % e)
 
 #função para criar tarefas das publicações
-def create_tasks_pubs(num_pubs, pubs, hoje):
+def create_tasks_pubs(pubs, hoje):
     configuration = asana.Configuration()
     configuration.access_token = ACESS_TOKEN
     api_client = asana.ApiClient(configuration)
@@ -37,6 +37,7 @@ def create_tasks_pubs(num_pubs, pubs, hoje):
      # exatamente como na documentaçãoance of the API class
     tasks_api_instance = asana.TasksApi(api_client)
     i = 1
+    print(len(pubs))
     for pub in pubs:
         #print(pub)
         body = {"data": {"name": f"{i}_{pub['numeroprocessocommascara']}_{pub['destinatarios'][0]['nome']}", 

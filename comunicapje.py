@@ -109,7 +109,7 @@ def capturar_pubs(texto="", sigla_tribunal="", orgao_id="", meio="", data_inicio
             pubs.append(info)
         time.sleep(0.5)    
 
-    return count, pubs 
+    return pubs 
 
 
 if __name__ == '__main__':
