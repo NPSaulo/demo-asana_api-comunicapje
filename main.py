@@ -1,0 +1,17 @@
+from datetime import datetime, timedelta
+from asana_api import create_tasks_pubs
+from comunicapje import capturar_pubs
+
+NOME_ADVOGADO = "SAULO NIEDERLE PEREIRA"
+HOJE = datetime.now()
+#convertendo a data em texto no formato AAAA-MM-DD
+HOJE_STR = HOJE.strftime('%Y-%m-%d')
+
+
+def main():
+    #pegando publicações do advogado acima definido na data de hoje
+    num_pubs, pubs = capturar_pubs(nome_adv=NOME_ADVOGADO, data_inicio=HOJE_STR, data_fim=HOJE_STR)
+    create_tasks_pubs(num_pubs=num_pubs, pubs=pubs, hoje=HOJE_STR)
+
+if __name__ == "__main__":
+    main()
