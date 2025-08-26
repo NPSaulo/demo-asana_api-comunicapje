@@ -3,10 +3,10 @@ from asana_api import create_tasks_pubs
 from comunicapje import capturar_pubs
 
 NOME_ADVOGADO = "SAULO NIEDERLE PEREIRA"
-HOJE = datetime.now()
+#HOJE = datetime.now()
 #convertendo a data em texto no formato AAAA-MM-DD
-HOJE_STR = HOJE.strftime('%Y-%m-%d')
-
+#HOJE_STR = HOJE.strftime('%Y-%m-%d')
+HOJE_STR = "2025-08-26"
 
 def main():
     #pegando publicações do advogado acima definido na data de hoje API do ComunicaPJE
