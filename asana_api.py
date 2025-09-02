@@ -3,7 +3,7 @@ from asana.rest import ApiException
 from pprint import pprint
 
 #PONHA ISTO NUM ARQUIVO .ENV, COLACIONADO AQUI APENAS PARA DEMO
-ACESS_TOKEN = '2/1204101193434903/1211086327140453:aa8a25fcce438ae65dff848a1210346e'
+ACESS_TOKEN = '2/1204101193434903/1211096955264607:113fe088eb6c633352e689c1878485c2'
 
 
 #função que retorna todos os projetos de um espaço de trabalho
@@ -29,20 +29,26 @@ def get_projects():
         print("Exception when calling ProjectsApi->get_projects_for_workspace: %s\n" % e)
 
 #função para criar tarefas das publicações
-def create_tasks_pubs(pubs, hoje):
+def create_tasks_pubs_resp(pubs, hoje, DADOS_RESP, DADOS_ASANA):
     configuration = asana.Configuration()
     configuration.access_token = ACESS_TOKEN
     api_client = asana.ApiClient(configuration)
 
-     # exatamente como na documentaçãoance of the API class
+     # exatamente como na documentação
     tasks_api_instance = asana.TasksApi(api_client)
-    i = 1
     print(len(pubs))
+    i = 1
     for pub in pubs:
-        #print(pub)
-        body = {"data": {"name": f"{i}_{pub['numeroprocessocommascara']}_{pub['destinatarios'][0]['nome']}", 
+        #print(pub['numeroprocessocommascara'])
+        #OBS: não sei porque se tirar a expressão do parenteses a indexação [0] dá erro 🤷
+        responsavel = (DADOS_RESP.loc[DADOS_RESP['processo'] == pub['numeroprocessocommascara']]['responsavel'].values)[0]
+        #print(responsavel)
+        id_responsavel = DADOS_ASANA.loc[DADOS_ASANA['pessoa'] == responsavel].values[0][1]
+        #print(id_responsavel)
+        body = {"data": {"name": f"{i}_{pub['numeroprocessocommascara']}", 
                 "due_on": hoje,
                 "notes": pub['texto'],
+                "assignee": str(id_responsavel),
                 "projects": "1211086539650689" #o 'gid' localizado no retorno da função acima
                 }} 
         opts = {
@@ -50,6 +56,7 @@ def create_tasks_pubs(pubs, hoje):
             'opt_fields': "actual_time_minutes,approval_status,assignee,assignee.name,assignee_section,assignee_section.name,assignee_status,completed,completed_at,completed_by,completed_by.name,created_at,created_by,custom_fields,custom_fields.asana_created_field,custom_fields.created_by,custom_fields.created_by.name,custom_fields.currency_code,custom_fields.custom_label,custom_fields.custom_label_position,custom_fields.date_value,custom_fields.date_value.date,custom_fields.date_value.date_time,custom_fields.default_access_level,custom_fields.description,custom_fields.display_value,custom_fields.enabled,custom_fields.enum_options,custom_fields.enum_options.color,custom_fields.enum_options.enabled,custom_fields.enum_options.name,custom_fields.enum_value,custom_fields.enum_value.color,custom_fields.enum_value.enabled,custom_fields.enum_value.name,custom_fields.format,custom_fields.has_notifications_enabled,custom_fields.id_prefix,custom_fields.is_formula_field,custom_fields.is_global_to_workspace,custom_fields.is_value_read_only,custom_fields.multi_enum_values,custom_fields.multi_enum_values.color,custom_fields.multi_enum_values.enabled,custom_fields.multi_enum_values.name,custom_fields.name,custom_fields.number_value,custom_fields.people_value,custom_fields.people_value.name,custom_fields.precision,custom_fields.privacy_setting,custom_fields.representation_type,custom_fields.resource_subtype,custom_fields.text_value,custom_fields.type,custom_type,custom_type.name,custom_type_status_option,custom_type_status_option.name,dependencies,dependents,due_at,due_on,external,external.data,followers,followers.name,hearted,hearts,hearts.user,hearts.user.name,html_notes,is_rendered_as_separator,liked,likes,likes.user,likes.user.name,memberships,memberships.project,memberships.project.name,memberships.section,memberships.section.name,modified_at,name,notes,num_hearts,num_likes,num_subtasks,parent,parent.created_by,parent.name,parent.resource_subtype,permalink_url,projects,projects.name,resource_subtype,start_at,start_on,tags,tags.name,workspace,workspace.name", # list[str] | This endpoint returns a resource which excludes some properties by default. To include those optional properties, set this query parameter to a comma-separated list of the properties you wish to include.
         }
 
+        
         try:
             # Create a task
             api_response = tasks_api_instance.create_task(body, opts)
@@ -57,4 +64,39 @@ def create_tasks_pubs(pubs, hoje):
         except ApiException as e:
             print("Exception when calling TasksApi->create_task: %s\n" % e)
         i +=1
+        
 
+def create_tasks_pubs_area(pubs, hoje, DADOS_AREA, DADOS_PROJETOS):
+    configuration = asana.Configuration()
+    configuration.access_token = ACESS_TOKEN
+    api_client = asana.ApiClient(configuration)
+
+     # exatamente como na documentação
+    tasks_api_instance = asana.TasksApi(api_client)
+    print(len(pubs))
+    i = 1
+    for pub in pubs:
+        print(pub['numeroprocessocommascara'])
+        #OBS: não sei porque se tirar a expressão do parenteses a indexação [0] dá erro 🤷
+        area = (DADOS_AREA.loc[DADOS_AREA['processo'] == pub['numeroprocessocommascara']]['area'].values)[0]
+        #print(responsavel)
+        projeto = DADOS_PROJETOS.loc[DADOS_PROJETOS['area'] == area].values[0][1]
+        #print(id_responsavel)
+        body = {"data": {"name": f"{i}_{pub['numeroprocessocommascara']}", 
+                "due_on": hoje,
+                "notes": pub['texto'],
+                "projects": str(projeto)
+                }} 
+        opts = {
+            # exatamente como na documentação
+            'opt_fields': "actual_time_minutes,approval_status,assignee,assignee.name,assignee_section,assignee_section.name,assignee_status,completed,completed_at,completed_by,completed_by.name,created_at,created_by,custom_fields,custom_fields.asana_created_field,custom_fields.created_by,custom_fields.created_by.name,custom_fields.currency_code,custom_fields.custom_label,custom_fields.custom_label_position,custom_fields.date_value,custom_fields.date_value.date,custom_fields.date_value.date_time,custom_fields.default_access_level,custom_fields.description,custom_fields.display_value,custom_fields.enabled,custom_fields.enum_options,custom_fields.enum_options.color,custom_fields.enum_options.enabled,custom_fields.enum_options.name,custom_fields.enum_value,custom_fields.enum_value.color,custom_fields.enum_value.enabled,custom_fields.enum_value.name,custom_fields.format,custom_fields.has_notifications_enabled,custom_fields.id_prefix,custom_fields.is_formula_field,custom_fields.is_global_to_workspace,custom_fields.is_value_read_only,custom_fields.multi_enum_values,custom_fields.multi_enum_values.color,custom_fields.multi_enum_values.enabled,custom_fields.multi_enum_values.name,custom_fields.name,custom_fields.number_value,custom_fields.people_value,custom_fields.people_value.name,custom_fields.precision,custom_fields.privacy_setting,custom_fields.representation_type,custom_fields.resource_subtype,custom_fields.text_value,custom_fields.type,custom_type,custom_type.name,custom_type_status_option,custom_type_status_option.name,dependencies,dependents,due_at,due_on,external,external.data,followers,followers.name,hearted,hearts,hearts.user,hearts.user.name,html_notes,is_rendered_as_separator,liked,likes,likes.user,likes.user.name,memberships,memberships.project,memberships.project.name,memberships.section,memberships.section.name,modified_at,name,notes,num_hearts,num_likes,num_subtasks,parent,parent.created_by,parent.name,parent.resource_subtype,permalink_url,projects,projects.name,resource_subtype,start_at,start_on,tags,tags.name,workspace,workspace.name", # list[str] | This endpoint returns a resource which excludes some properties by default. To include those optional properties, set this query parameter to a comma-separated list of the properties you wish to include.
+        }
+
+        
+        try:
+            # Create a task
+            api_response = tasks_api_instance.create_task(body, opts)
+            #pprint(api_response)
+        except ApiException as e:
+            print("Exception when calling TasksApi->create_task: %s\n" % e)
+        i +=1
