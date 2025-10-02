@@ -3,7 +3,7 @@ from asana.rest import ApiException
 from pprint import pprint
 
 #PONHA ISTO NUM ARQUIVO .ENV, COLACIONADO AQUI APENAS PARA DEMO
-ACESS_TOKEN = '2/1204101193434903/1211096955264607:113fe088eb6c633352e689c1878485c2'
+ACESS_TOKEN = '2/1204101193434903/1211096955264607:2c1b10695d0f318f442ddb30fb604549'
 
 
 #função que retorna todos os projetos de um espaço de trabalho
@@ -29,7 +29,7 @@ def get_projects():
         print("Exception when calling ProjectsApi->get_projects_for_workspace: %s\n" % e)
 
 #função para criar tarefas das publicações
-def create_tasks_pubs_resp(pubs, hoje, DADOS_RESP, DADOS_ASANA):
+def criar_tarefas_pubs_resp(pubs, hoje, DADOS_RESP, DADOS_ASANA):
     configuration = asana.Configuration()
     configuration.access_token = ACESS_TOKEN
     api_client = asana.ApiClient(configuration)
@@ -66,7 +66,7 @@ def create_tasks_pubs_resp(pubs, hoje, DADOS_RESP, DADOS_ASANA):
         i +=1
         
 
-def create_tasks_pubs_area(pubs, hoje, DADOS_AREA, DADOS_PROJETOS):
+def criar_tarefas_pubs_area(pubs, hoje, DADOS_AREA, DADOS_PROJETOS):
     configuration = asana.Configuration()
     configuration.access_token = ACESS_TOKEN
     api_client = asana.ApiClient(configuration)
@@ -100,3 +100,34 @@ def create_tasks_pubs_area(pubs, hoje, DADOS_AREA, DADOS_PROJETOS):
         except ApiException as e:
             print("Exception when calling TasksApi->create_task: %s\n" % e)
         i +=1
+
+def criar_tarefa_categoria(pub, categoria, id_responsavel, hoje_str):
+    """
+    Cria uma única tarefa no Asana com base na categoria extraída pelo LLM.
+    """
+    configuration = asana.Configuration()
+    configuration.access_token = ACESS_TOKEN
+    api_client = asana.ApiClient(configuration)
+    tasks_api_instance = asana.TasksApi(api_client)
+
+    # Formata o nome da tarefa para incluir a categoria
+    nome_tarefa = f"{categoria} - {pub['numeroprocessocommascara']}"
+
+    body = {
+        "data": {
+            "name": nome_tarefa,
+            "due_on": hoje_str,
+            "notes": pub['texto'],
+            "assignee": str(id_responsavel),
+            "projects": "1211086539650689" # GID do projeto de destino
+        }
+    }
+
+    try:
+        api_response = tasks_api_instance.create_task(body, {})
+        print(f"Tarefa '{nome_tarefa}' criada com sucesso para o ID {id_responsavel}.")
+        # pprint(api_response) # Descomente para ver a resposta completa da API
+    except ApiException as e:
+        print(f"Erro ao criar tarefa no Asana: {e}\n")
+
+

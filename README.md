@@ -1,65 +1,83 @@
 ### Visão Geral do Código
 
-O objetivo deste conjunto de scripts é automatizar a criação de tarefas no **Asana** a partir de publicações de processos judiciais de um advogado específico. O fluxo é o seguinte:
+O objetivo deste conjunto de scripts é demonstrar como é possível automatizar a criação  de tarefas no **Asana** a partir de publicações judiciais. O sistema utiliza um Modelo de Linguagem Grande (LLM) para analisar o conteúdo de cada publicação e atribuir a tarefa ao responsável correto.
 
-1.  O script **`main.py`** é o ponto de partida. Ele define o nome do advogado e a data atual.
-2.  Ele chama uma função do script **`comunicapje.py`** para buscar as publicações mais recentes do advogado.
-3.  O script **`comunicapje.py`** se conecta à **API do ComunicaPJE**, um serviço que disponibiliza informações de publicações judiciais. Ele busca as publicações do advogado na data especificada e organiza os dados relevantes, como o número do processo e o texto da publicação.
-4.  Com a lista de publicações em mãos, o script `main.py` chama uma função do script **`asana_api.py`**.
-5.  O script **`asana_api.py`** se conecta à **API do Asana**. Para cada publicação encontrada, ele cria uma nova tarefa no seu projeto do Asana, usando os dados da publicação, como o número do processo e o texto, para preencher a tarefa.
+O fluxo é o seguinte:
+
+1.  O script **`main.py`** é o ponto de partida. Ele define o nome do advogado a ser monitorado e a data atual.
+2.  Ele chama uma função do script **`comunicapje.py`** para se conectar à **API do ComunicaPJE** e buscar as publicações mais recentes do advogado.
+3.  Com a lista de publicações, `main.py` itera sobre cada uma e chama uma função do script **`claude_api.py`**.
+4.  O `claude_api.py` envia o texto da publicação para a **API da Anthropic (Claude)**, que o analisa e o classifica em uma categoria predefinida (ex: `DEFESA_CONTRARRAZOES`, `AUDIENCIA_CONCILIACAO`, etc.).
+5.  De volta ao `main.py`, o script utiliza a categoria retornada pelo modelo para determinar, através de uma lógica interna, qual membro da equipe é o responsável por aquele tipo de tarefa.
+6.  Finalmente, o `main.py` chama a função apropriada no `asana_api.py` para se conectar à **API do Asana** e criar uma nova tarefa, já atribuída à pessoa certa e com um título que reflete seu conteúdo.
 
 ---
 
 ### Passo 0: Instalar o Python e as Bibliotecas Necessárias
 
-Para rodar este script, você precisará ter o **Python** instalado na sua máquina e também instalar as bibliotecas **requests** e **asana**.
+Para rodar este script, você precisará do **Python** e de algumas bibliotecas.
 
-1.  **Instale o Python**: Se você ainda não tem o Python instalado, baixe a versão mais recente em [python.org](https://www.python.org/). Durante a instalação, certifique-se de marcar a opção "Add Python to PATH", que facilita o uso do Python pelo terminal.
+1.  **Instale o Python**: Se ainda não o tiver, baixe a versão mais recente em [python.org](https://www.python.org/). Durante a instalação, marque a opção "Add Python to PATH".
 
-2.  **Instale as bibliotecas**: Abra o seu terminal ou prompt de comando e execute os seguintes comandos para instalar as bibliotecas necessárias:
-    ```
+2.  **Instale as bibliotecas**: Abra seu terminal (ou prompt de comando) e execute os seguintes comandos:
+    ```bash
     pip install requests
     pip install asana
+    pip install anthropic
+    pip install python-dotenv
     ```
 
 ---
 
-### Passo 1: Configurar o Asana
+### Passo 1: Configurar Chaves de Acesso (Tokens)
 
-Para que o script funcione, você precisa fornecer a ele uma "chave" para acessar sua conta do Asana, chamada de **Personal Access Token**.
+Este projeto precisa de acesso a duas APIs: Asana e Anthropic. A maneira mais segura de gerenciar essas chaves é usando um arquivo de ambiente.
 
-1.  Acesse sua conta do **Asana** no navegador.
-2.  Vá em **Minhas configurações** > **Aplicativos**.
-3.  Na seção "Desenvolvedor", clique em **Gerenciar Personal Access Tokens**.
-4.  Clique em **+ Criar novo token**. Dê um nome, aceite os termos e salve o token em um local seguro.
+1.  **Crie um arquivo `.env`**: Na mesma pasta onde estão os scripts, crie um novo arquivo chamado `.env`.
 
-**Atenção**: O token que está no arquivo `asana_api.py` (a variável `ACESS_TOKEN`) é apenas um exemplo. Você deve substituí-lo pelo seu próprio token.
+2.  **Obtenha o Personal Access Token do Asana**:
+    * Acesse sua conta do **Asana** e vá em **Minhas configurações** > **Aplicativos** > **Gerenciar Personal Access Tokens**.
+    * Clique em **+ Criar novo token**, dê um nome a ele e salve o token gerado.
+    * No seu arquivo `.env`, adicione a seguinte linha, substituindo `SEU_TOKEN_DO_ASANA` pelo token que você copiou:
+        ```
+        ASANA_ACCESS_TOKEN="SEU_TOKEN_DO_ASANA"
+        ```
+
+3.  **Obtenha a Chave de API da Anthropic (Claude)**:
+    * Acesse o site da Anthropic e navegue até a seção de chaves de API (API Keys).
+    * Gere uma nova chave de API.
+    * No mesmo arquivo `.env`, adicione a seguinte linha, substituindo `SUA_CHAVE_DA_ANTHROPIC` pela chave que você gerou:
+        ```
+        ANTHROPIC_API_KEY="SUA_CHAVE_DA_ANTHROPIC"
+        ```
 
 ---
 
-### Passo 2: Obter o ID do Projeto no Asana
+### Passo 2: Obter IDs (GIDs) no Asana
 
-O script precisa saber em qual projeto do Asana ele deve criar as tarefas. Para encontrar o ID (conhecido como `gid`), você pode usar a função `get_projects()` no script `asana_api.py`.
+O script precisa de dois tipos de IDs do Asana: o do **Projeto** onde as tarefas serão criadas e os dos **Usuários** que serão responsáveis por elas.
 
-1.  Abra o arquivo `asana_api.py`.
-2.  Substitua o valor da variável **`ACESS_TOKEN`** pelo token que você acabou de gerar.
-3.  Descomente a linha `get_projects()` (se ainda não estiver) e execute o script.
+1.  **ID do Projeto**:
+    * Para encontrar o `gid` do projeto, você pode usar a função `get_projects()` no script `asana_api.py`.
+    * Abra o arquivo, substitua o valor de `ACESS_TOKEN` temporariamente pelo seu token, descomente a chamada da função `get_projects()` e execute o script `python asana_api.py`.
+    * Ele listará todos os seus projetos. Encontre o `gid` do projeto desejado e anote-o.
 
-O script vai imprimir uma lista de todos os seus projetos do Asana. Encontre o projeto que você deseja usar e anote o número **`gid`** associado a ele. No exemplo do arquivo, o `gid` é `1211086539650689`.
+2.  **IDs dos Usuários**:
+    * A forma mais fácil de encontrar o `gid` de um usuário é acessar o perfil dele no Asana e copiar o número que aparece na URL do navegador.
 
 ---
 
 ### Passo 3: Configurar os Arquivos Python
 
-Agora que você já tem o seu token e o ID do projeto, é hora de ajustar o código.
+Agora, vamos ajustar os scripts para usar os IDs que você coletou.
 
 1.  **No arquivo `asana_api.py`**:
-    * Substitua o valor da variável `ACESS_TOKEN` pelo seu token pessoal.
-    * Substitua o `gid` do projeto na variável `body` da função `create_tasks_pubs` pelo ID que você anotou no passo anterior.
+    * **(Opcional)** O script está configurado para ler o token do arquivo `.env`. Se preferir, você pode substituir o valor da variável `ACESS_TOKEN` diretamente no código.
+    * Na função `criar_tarefa_categoria`, substitua o `gid` do projeto (`"1211086539650689"`) pelo ID do seu projeto que você anotou.
 
 2.  **No arquivo `main.py`**:
     * Altere o valor da variável `NOME_ADVOGADO` para o nome completo do advogado que você quer monitorar.
-    * O script está configurado para buscar publicações na data atual, com as variáveis `data_inicio` e `data_fim` sendo a data de hoje.
+    * No dicionário `RESPONSAVEIS_GIDS`, substitua os `gids` de exemplo pelos IDs reais dos usuários do Asana que você anotou. Cada categoria de tarefa deve ser mapeada para o `gid` do membro da equipe responsável por ela.
 
 ---
 
@@ -67,23 +85,25 @@ Agora que você já tem o seu token e o ID do projeto, é hora de ajustar o cód
 
 Com tudo configurado, você pode rodar o script principal.
 
-1.  Abra um terminal ou prompt de comando.
-2.  Navegue até a pasta onde os arquivos estão salvos.
-3.  Execute o arquivo `main.py` com o comando:
-    ```
+1.  Abra um terminal na pasta onde os arquivos estão salvos.
+2.  Execute o `main.py` com o comando:
+    ```bash
     python main.py
     ```
 
-O script vai se conectar à API do ComunicaPJE, buscar as publicações do advogado na data de hoje e, em seguida, criar uma tarefa no seu projeto do Asana para cada publicação encontrada. A tarefa terá o número do processo no título e o texto da publicação na descrição.
+O script irá buscar as publicações, classificá-las com o LLM e criar as tarefas no seu projeto do Asana, já delegadas para as pessoas certas.
+
+---
+
+### Nota sobre Funções de Demonstrações Anteriores
+
+No arquivo `asana_api.py`, você notará a existência de outras funções para criar tarefas, como `criar_tarefas_pubs_area` e `criar_tarefas_pubs_resp`. Essas funções foram mantidas como um registro de demonstrações anteriores, que utilizavam lógicas mais simples (como buscar o responsável em um arquivo Excel). Elas **não são utilizadas** no fluxo atual, que se baseia na classificação de conteúdo feita pelo LLM.
 
 ---
 
 ### Possíveis Erros e Como Resolvê-los
 
-Ao usar o script, você pode encontrar alguns problemas comuns.
-
-* **Erro de Conexão com a API do ComunicaPJE**: Às vezes, o servidor do ComunicaPJE pode estar fora do ar, o que causará um erro no script. Se isso acontecer, a solução é simples: espere alguns minutos e tente rodar o script novamente.
-
-* **Erro de Autenticação no Asana**: Certifique-se de que o **Personal Access Token** que você inseriu no arquivo `asana_api.py` está correto. Se o token for inválido, o script não conseguirá criar as tarefas e exibirá uma exceção.
-
-* **Erro com o `gid` do Projeto**: Verifique se o ID do projeto que você inseriu na função `create_tasks_pubs` em `asana_api.py` está correto. Um `gid` incorreto impedirá que as tarefas sejam criadas no local certo.
+* **Erro de Conexão com a API do ComunicaPJE**: O servidor pode estar temporariamente fora do ar. Espere alguns minutos e tente rodar o script novamente.
+* **Erro de Autenticação no Asana**: Verifique se o token no seu arquivo `.env` (`ASANA_ACCESS_TOKEN`) está correto e não expirou.
+* **Erro de Autenticação na Anthropic**: Verifique se a chave de API no seu arquivo `.env` (`ANTHROPIC_API_KEY`) está correta.
+* **Erro com o `gid` do Projeto**: Certifique-se de que o ID do projeto inserido na função `criar_tarefa_categoria` está correto.
